@@ -1,7 +1,9 @@
 library(tidyverse)
 library(readxl)
 # 1. Kombinieren Sie die Tabellen der beiden Jahre, so dass die Jahreszahl für jeden Datensatz ebenfalls ersichtlich ist.
-read_excel("su-d-01.02.03.06.xlsx")
+read_excel("su-d-01.02.03.06.xlsx") |>
+    view("su-d-01.02.03.06.xlsx")
+
 
 
 
