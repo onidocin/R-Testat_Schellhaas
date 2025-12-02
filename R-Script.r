@@ -1,3 +1,4 @@
+library(tidyverse)
 # 1. Kombinieren Sie die Tabellen der beiden Jahre, so dass die Jahreszahl für jeden Datensatz ebenfalls ersichtlich ist.
 
 # 2. Erzeugen Sie je einen Sekundärindex für die Kantone und einen für die Bezirke, so dass für jeden Gemeindendatensatz auch der Kantons- und Bezirksname ersichtlich ist.
