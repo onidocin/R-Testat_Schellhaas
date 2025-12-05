@@ -1,8 +1,26 @@
+# Bibliotheken-Sammlung
 library(tidyverse)
 library(readxl)
+library(dplyr)
 # 1. Kombinieren Sie die Tabellen der beiden Jahre, so dass die Jahreszahl für jeden Datensatz ebenfalls ersichtlich ist.
-read_excel("su-d-01.02.03.06.xlsx") |>
-    view("su-d-01.02.03.06.xlsx")
+
+
+file <- "su-d-01.02.03.06.xlsx"
+
+# Sheet-Namen
+sheets <- excel_sheets(2022, 2010)
+
+# Erste Tabelle
+tabelle1 <- read_excel(file, sheet = sheets[1]) %>%
+  mutate(Jahr = sheets[1])
+
+# Zweite Tabelle
+tabelle2 <- read_excel(file, sheet = sheets[2]) %>%
+  mutate(Jahr = sheets[2])
+
+tabellen_beide <- bind_rows(tabelle1, tabelle2)
+
+View(tabellen_beide)
 
 
 
