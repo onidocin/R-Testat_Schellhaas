@@ -8,7 +8,7 @@ library(dplyr)
 file <- "su-d-01.02.03.06.xlsx"
 
 # Sheet-Namen
-sheets <- excel_sheets(2022, 2010)
+sheets <- excel_sheets(file)
 
 # Erste Tabelle
 tabelle1 <- read_excel(file, sheet = sheets[1]) %>%
@@ -21,7 +21,6 @@ tabelle2 <- read_excel(file, sheet = sheets[2]) %>%
 tabellen_beide <- bind_rows(tabelle1, tabelle2)
 
 View(tabellen_beide)
-
 
 
 
