@@ -23,7 +23,6 @@ tabellen_beide <- bind_rows(tabelle1, tabelle2)
 View(tabellen_beide)
 
 
-
 # 2. Erzeugen Sie je einen Sekundärindex für die Kantone und einen für die Bezirke, so dass für jeden Gemeindendatensatz auch der Kantons- und Bezirksname ersichtlich ist.
 
 # 3. Organisieren Sie die Wohnbevölkerung nach den folgenden Altersgruppen: 
