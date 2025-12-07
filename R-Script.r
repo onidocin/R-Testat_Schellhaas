@@ -15,8 +15,8 @@ tabelle1 <- read_excel(file, sheet = sheets[1]) %>%
   mutate(Jahr = sheets[1])
 
 # Zweite Tabelle
-tabelle2 <- read_excel(file, sheet = sheets[2]) %>%
-  mutate(Jahr = sheets[2])
+tabelle2 <- read_excel(file, sheet = sheets[13]) %>%
+  mutate(Jahr = sheets[13])
 
 tabellen_beide <- bind_rows(tabelle1, tabelle2)
 
