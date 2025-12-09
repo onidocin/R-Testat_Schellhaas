@@ -35,16 +35,20 @@ tibble(
   mutate(
     daten = read_excel("su-d-01.02.03.06.xlsx", skip = 1, sheet = Jahr) |> list()
   ) |>
-  unnest(daten)
-  filter(Region != "Schweiz")
-  rename(`100` = "100 und mehr")
+  unnest(daten) |>
+  filter(Region != "Schweiz") |>
+  rename(`100` = "100 und mehr") |>
+  print(n = 100)
+
 
 # 3. Organisieren Sie die Wohnbevölkerung nach den folgenden Altersgruppen: 
 # Kinder (Bis 12 Jahre)
 # Minderjährige (unter 18 Jährige)
 # Erwachsene, jünger als 65 Jahre
 # Erwachsene, ab 65 Jahren
-reframe()
+reframe(
+  Spalte4 = sum(Spalte4 )
+)
 # 4. Bestimmen Sie die statistischen Kennwerte für die drei Altersgruppen über alle Datensätze der Jahre 2010 und 2022 der Originalquelle und speichern Sie Ihre Ergebnisse als Tabelle.
 #Achtung: 
 
