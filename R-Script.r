@@ -1,7 +1,7 @@
 # Bibliotheken-Sammlung
-library(tidyverse)
-library(readxl)
-library(dplyr)
+library("tidyverse")
+library("readxl")
+library("dplyr")
 # 1. Kombinieren Sie die Tabellen der beiden Jahre, so dass die Jahreszahl für jeden Datensatz ebenfalls ersichtlich ist.
 
 
@@ -11,12 +11,13 @@ file <- "su-d-01.02.03.06.xlsx"
 sheets <- excel_sheets(file)
 
 # Erste Tabelle
-tabelle1 <- read_excel(file, sheet = sheets[1]) %>%
-  mutate(Jahr = sheets[1])
+tabelle1 <- read_excel(file, sheet = "2022", skip = 1) %>%
+  mutate(Jahr = "2022")
 
 # Zweite Tabelle
-tabelle2 <- read_excel(file, sheet = sheets[13]) %>%
-  mutate(Jahr = sheets[13])
+tabelle2 <- read_excel(file, sheet = "2010") %>%
+  mutate(Jahr = "2010")
+
 
 tabellen_beide <- bind_rows(tabelle1, tabelle2)
 
@@ -24,9 +25,19 @@ View(tabellen_beide)
 
 
 # 2. Erzeugen Sie je einen Sekundärindex für die Kantone und einen für die Bezirke, so dass für jeden Gemeindendatensatz auch der Kantons- und Bezirksname ersichtlich ist.
-tabellen_beide |>
-  group_by()
-mutate()
+tibble(
+  Jahr = c(
+    "2022",
+    "2010"
+  )
+) |>
+  group_by(Jahr) |>
+  mutate(
+    daten = read_excel("su-d-01.02.03.06.xlsx", skip = 1, sheet = Jahr) |> list()
+  ) |>
+  unnest(daten)
+  filter(Region != "Schweiz")
+  rename(`100` = "100 und mehr")
 
 # 3. Organisieren Sie die Wohnbevölkerung nach den folgenden Altersgruppen: 
 # Kinder (Bis 12 Jahre)
