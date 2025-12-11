@@ -331,19 +331,24 @@ minder_mean_gemeinde_plot <- minder_mean_gemeinde %>%
   filter(!bezirk %in% exclude_names)
 
 # Plot
-p <- ggplot(minder_mean_gemeinde_plot, aes(x = factor(year()), y = mean_age_minder)) +
-  geom_boxplot() +
-  facet_wrap(~ bezirk, scales = "free_y") +
-  labs(
-    title = "Verteilung des Durchschnittsalters der Minderjährigen (Gemeinden) in den Bezirken des Kantons Zürich",
-    subtitle = "Ohne die Stadt Zürich — Vergleich 2010 vs 2022",
-    x = "Jahr",
-    y = "Durchschnittsalter Minderjährige (Jahre)"
-  ) +
-  theme_minimal()
-names(zuerich_pop)
-head(zuerich_pop)
+# p <- ggplot(minder_mean_gemeinde_plot, aes(x = factor(year()), y = mean_age_minder)) +
+#   geom_boxplot() +
+#   facet_wrap(~ bezirk, scales = "free_y") +
+#   labs(
+#     title = "Verteilung des Durchschnittsalters der Minderjährigen (Gemeinden) in den Bezirken des Kantons Zürich",
+#     subtitle = "Ohne die Stadt Zürich — Vergleich 2010 vs 2022",
+#     x = "Jahr",
+#     y = "Durchschnittsalter Minderjährige (Jahre)"
+#   ) +
+#   theme_minimal()
+# Filter Zürich ohne Stadt Zürich
+zuerich_bezirke <- pop_all %>%
+  filter(kanton == "Zürich" & bezirk != "Zürich")  # Stadt Zürich ausschließen
 
+# Plot erstellen
+p <- ggplot(zuerich_bezirke, aes(x = gruppe_disj, y = population)) +
+  geom_boxplot() +
+  theme_bw()
 
 
 # Speichern des Plots
