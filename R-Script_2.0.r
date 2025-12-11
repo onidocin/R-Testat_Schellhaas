@@ -21,11 +21,6 @@ kantone_de <- c("Zürich","Bern","Luzern","Uri","Schwyz","Obwalden","Nidwalden",
 
 # ---- Funktion zum Einlesen + Umwandeln eines Jahresfiles ----
 read_population_year <- function(file, sheet, year) {
-  library(dplyr)
-  library(tidyr)
-  library(readxl)
-  library(stringr)
-
   raw <- read_excel(file, sheet = sheet)
   
   # Region/Gemeinde
@@ -195,36 +190,108 @@ write_csv(stat_groups, "statistische_kennwerte_altersgruppen_2010_2022.csv")
 # - Für jede Bezirk x Jahr x Altersgruppe: compute weighted mean age = sum(age * persons_in_age)/sum(persons_in_age)
 # - Dann Unterschied 2022 - 2010
 
+# Bezirke und Kantone definieren
+pop_all <- pop_all %>%
+  mutate(
+    kanton_row = if_else(str_starts(region_trim, "- "),
+                         str_remove(region_trim, "^-\\s*"),
+                         NA_character_)
+  ) %>%
+  fill(kanton_row, .direction = "down") %>%
+  rename(kanton = kanton_row)
+unique(pop_all$kanton)
+
+
 # Erst: berechne Einwohner pro Alter (alter_num) aggregiert auf Bezirk-Ebene (kanton == "Zürich")
 zuerich_age_dist <- pop_all %>%
   filter(kanton == "Zürich") %>%
-  group_by(jahr, kanton, bezirk, alter_num) %>%
-  summarise(einwohner = sum(einwohner, na.rm = TRUE), .groups = "drop")
+  group_by(year, kanton, bezirk, age) %>%
+  summarise(population = sum(population, na.rm = TRUE), .groups = "drop")
 
-# Funktion: Weighted mean age for a given age-range
-weighted_mean_age <- function(df, age_min, age_max) {
-  sub <- df %>% filter(alter_num >= age_min, alter_num <= age_max)
-  tot <- sum(sub$einwohner, na.rm = TRUE)
-  if (tot == 0) return(NA_real_)
-  wm <- sum(sub$alter_num * sub$einwohner, na.rm = TRUE) / tot
-  return(wm)
+# sichere weighted mean Funktion
+weighted_mean_age <- function(age, population) {
+  if(length(age) == 0 || sum(population, na.rm = TRUE) == 0) return(NA_real_)
+  sum(age * population, na.rm = TRUE) / sum(population, na.rm = TRUE)
 }
 
-# Berechne für jede Bezirk und Jahr die gewichteten Mittelalter für die drei disjunkten Gruppen
+# Summarise für Bezirke
 bezirk_age_means <- zuerich_age_dist %>%
-  group_by(jahr, bezirk) %>%
+  group_by(year, bezirk) %>%
   summarise(
-    mean_kinder_0_12 = weighted_mean_age(cur_data(), 0, 12),
-    mean_erw_18_64  = weighted_mean_age(cur_data(), 18, 64),
-    mean_erw_65plus = weighted_mean_age(cur_data(), 65, 120),
+    mean_kinder_0_12 = weighted_mean_age(age[age >= 0 & age <= 12], population[age >= 0 & age <= 12]),
+    mean_erw_18_64  = weighted_mean_age(age[age >= 18 & age < 65], population[age >= 18 & age < 65]),
+    mean_erw_65plus = weighted_mean_age(age[age >= 65], population[age >= 65]),
     .groups = "drop"
   )
 
+# Problem Zürich lösen
+
+pop_clean <- pop_all %>%
+  mutate(
+    # Hierarchie-Ebene erkennen
+    level = case_when(
+      region_trim == "Schweiz" ~ "CH",
+      str_detect(region_trim, "^\\- ") ~ "Kanton",
+      str_detect(region_trim, "^>> ") ~ "Bezirk",
+      str_detect(region_trim, "^\\.\\.\\.\\.") ~ "Gemeinde",
+      TRUE ~ "Sonst"
+    ),
+    
+    # Text bereinigen (Prefix entfernen)
+    region_clean = region_trim %>%
+      str_remove("^\\- ") %>%
+      str_remove("^>> ") %>%
+      str_remove("^\\.\\.\\.\\.") %>%
+      str_trim()
+  ) %>%
+  
+  # Hierarchie aufbauen
+  mutate(
+    kanton = if_else(level == "Kanton", region_clean, NA_character_),
+    bezirk = if_else(level == "Bezirk", region_clean, NA_character_),
+    gemeinde = if_else(level == "Gemeinde", region_clean, NA_character_)
+  ) %>%
+  
+  # Werte nach unten „durchreichen“
+  fill(kanton, .direction = "down") %>%
+  fill(bezirk, .direction = "down") %>%
+  fill(gemeinde, .direction = "down") %>%
+  
+  # Schweiz-Level behalten wir separat
+  mutate(kanton = if_else(level == "CH", NA_character_, kanton))
+
+
+
+
 # Pivot so wir Differenz 2022 - 2010 berechnen können
 bezirk_age_wide <- bezirk_age_means %>%
-  pivot_longer(cols = starts_with("mean"), names_to = "gruppe", values_to = "mean_age") %>%
-  pivot_wider(names_from = jahr, values_from = mean_age, names_prefix = "jahr_") %>%
+  pivot_longer(
+    cols = starts_with("mean"),
+    names_to = "gruppe",
+    values_to = "mean_age"
+  ) %>%
+  pivot_wider(
+    names_from = year,
+    values_from = mean_age,
+    names_prefix = "jahr_"
+  ) %>%
   mutate(differenz_2022_minus_2010 = jahr_2022 - jahr_2010)
+
+test_wide <- bezirk_age_means %>%
+  pivot_longer(
+    cols = starts_with("mean"),
+    names_to = "gruppe",
+    values_to = "mean_age"
+  ) %>%
+  pivot_wider(
+    names_from = year,
+    values_from = mean_age,
+    names_prefix = "jahr_"
+  )
+
+unique(bezirk_age_means$year)
+names(test_wide)
+head(bezirk_age_means)
 
 # Speichere als CSV
 write_csv(bezirk_age_wide, "differenz_durchschnittsalter_bezirke_zuerich_2022_minus_2010.csv")
@@ -270,16 +337,3 @@ ggsave("boxplot_minderjaehrige_zuerich_bezirke_ohne_stadtzuerich.png", plot = p,
 write_csv(wide_groups, "gemeinden_altersgruppen_breit_2010_2022.csv")
 write_csv(minder_mean_gemeinde, "mean_age_minder_gemeinde_zuerich_2010_2022.csv")
 
-# Ausgabe von Zusammenfassungen im Console-Log
-message("Fertig. Folgende Dateien wurden erzeugt:")
-message("- statistische_kennwerte_altersgruppen_2010_2022.csv")
-message("- differenz_durchschnittsalter_bezirke_zuerich_2022_minus_2010.csv")
-message("- boxplot_minderjaehrige_zuerich_bezirke_ohne_stadtzuerich.png")
-message("- gemeinden_altersgruppen_breit_2010_2022.csv")
-message("- mean_age_minder_gemeinde_zuerich_2010_2022.csv")
-
-# Unwichtige Ausgaben
-head_raw <- readxl::read_excel(file, sheet = sheet_2010, n_max = 5)
-head_raw
-names(head_raw)
-str(head_raw)
