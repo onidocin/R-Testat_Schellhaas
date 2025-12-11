@@ -5,6 +5,7 @@ library(readxl)
 library(janitor)
 library(dplyr)
 library(stringr)
+library(ggplot2)
 
 # ---- Benutzeranpassung: Dateipfade und sheetnamen ----
 file <- "su-d-01.02.03.06.xlsx"
@@ -314,13 +315,13 @@ write_csv(bezirk_age_wide, "differenz_durchschnittsalter_bezirke_zuerich_2022_mi
 
 # Zuerst: Durchschnittsalter Minderjährige pro Gemeinde und Jahr (kanton Zürich)
 minder_mean_gemeinde <- pop_all %>%
-  filter(kanton == "Zürich", alter_num < 18) %>%
-  group_by(jahr, bezirk, gemeinde = gebiet_trim, alter_num) %>%
-  summarise(einwohner = sum(einwohner, na.rm = TRUE), .groups = "drop") %>%
-  group_by(jahr, bezirk, gemeinde) %>%
+  filter(kanton == "Zürich", age < 18) %>%
+  group_by(year, bezirk, gemeinde = region_trim, age) %>%
+  summarise(population = sum(population, na.rm = TRUE), .groups = "drop") %>%
+  group_by(year, bezirk, gemeinde) %>%
   summarise(
-    mean_age_minder = if_else(sum(einwohner, na.rm = TRUE) == 0, NA_real_,
-                              sum(alter_num * einwohner, na.rm = TRUE) / sum(einwohner, na.rm = TRUE)),
+    mean_age_minder = if_else(sum(population, na.rm = TRUE) == 0, NA_real_,
+                              sum(age * population, na.rm = TRUE) / sum(population, na.rm = TRUE)),
     .groups = "drop"
   )
 
@@ -330,8 +331,7 @@ minder_mean_gemeinde_plot <- minder_mean_gemeinde %>%
   filter(!bezirk %in% exclude_names)
 
 # Plot
-library(ggplot2)
-p <- ggplot(minder_mean_gemeinde_plot, aes(x = factor(jahr), y = mean_age_minder)) +
+p <- ggplot(minder_mean_gemeinde_plot, aes(x = factor(year()), y = mean_age_minder)) +
   geom_boxplot() +
   facet_wrap(~ bezirk, scales = "free_y") +
   labs(
@@ -341,6 +341,10 @@ p <- ggplot(minder_mean_gemeinde_plot, aes(x = factor(jahr), y = mean_age_minder
     y = "Durchschnittsalter Minderjährige (Jahre)"
   ) +
   theme_minimal()
+names(zuerich_pop)
+head(zuerich_pop)
+
+
 
 # Speichern des Plots
 ggsave("boxplot_minderjaehrige_zuerich_bezirke_ohne_stadtzuerich.png", plot = p, width = 14, height = 10, dpi = 300)
