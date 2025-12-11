@@ -45,11 +45,21 @@ tibble(
 # Minderjährige (unter 18 Jährige)
 # Erwachsene, jünger als 65 Jahre
 # Erwachsene, ab 65 Jahren
-read_excel("su-d-01.02.03.06.xlsx") |>
-  mutate(
-    Kinder = column_to_rownames()
-  ) |> View("su-d-01.02.03.06.xlsx")
-# 4. Bestimmen Sie die statistischen Kennwerte für die drei Altersgruppen über alle Datensätze der Jahre 2010 und 2022 der Originalquelle und speichern Sie Ihre Ergebnisse als Tabelle.
+
+tabellen_beide$Kinder_22          <- rowSums(tabellen_beide[, as.character(0:12)])
+tabellen_beide$Minderjaehrige_22  <- rowSums(tabellen_beide[, as.character(13:17)])
+tabellen_beide$Erw_u65_22         <- rowSums(tabellen_beide[, as.character(18:64)])
+tabellen_beide$Erw_ab65_22        <- rowSums(tabellen_beide[, as.character(65:100)]) 
+
+tabellen_beide$Kinder_22          <- rowSums(tabellen_beide[, as.character(...3)])
+tabellen_beide$Minderjaehrige_22  <- rowSums(tabellen_beide[, as.character(13:17)])
+tabellen_beide$Erw_u65_22         <- rowSums(tabellen_beide[, as.character(18:64)])
+tabellen_beide$Erw_ab65_22        <- rowSums(tabellen_beide[, as.character(65:99)]) 
+
+
+View(tabellen_beide)
+names(tabellen_beide)
+# 4. Bestimmen Sie die statistischen Kennwerte für die vier Altersgruppen über alle Datensätze der Jahre 2010 und 2022 der Originalquelle und speichern Sie Ihre Ergebnisse als Tabelle.
 #Achtung: 
 
 # 5. Ermitteln Sie den Unterschied des Durchschnittsalters dieser Gruppen in den beiden Referenzjahren für alle Bezirke im Kanton Zürich und speichern Sie diese Unterschiede als separate Tabelle.
