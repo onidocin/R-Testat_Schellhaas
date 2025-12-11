@@ -192,14 +192,26 @@ write_csv(stat_groups, "statistische_kennwerte_altersgruppen_2010_2022.csv")
 
 # Bezirke und Kantone definieren
 pop_all <- pop_all %>%
+  select(-kanton) %>%   # alte kaputte kanton-Spalte löschen
   mutate(
-    kanton_row = if_else(str_starts(region_trim, "- "),
-                         str_remove(region_trim, "^-\\s*"),
-                         NA_character_)
+    kanton_row = if_else(
+      str_starts(region_trim, "- "),
+      str_remove(region_trim, "^-\\s*"),
+      NA_character_
+    )
   ) %>%
   fill(kanton_row, .direction = "down") %>%
   rename(kanton = kanton_row)
-unique(pop_all$kanton)
+
+pop_all <- pop_all %>%
+  mutate(
+    bezirk = case_when(
+      str_starts(region_trim, ">>") ~ str_remove(region_trim, "^>>\\s*"),
+      str_starts(region_trim, "\\.+") ~ str_remove(region_trim, "^\\.+\\d+\\s*"),
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  fill(bezirk, .direction = "down")
 
 
 # Erst: berechne Einwohner pro Alter (alter_num) aggregiert auf Bezirk-Ebene (kanton == "Zürich")
