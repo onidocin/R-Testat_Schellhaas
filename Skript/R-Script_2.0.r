@@ -55,7 +55,7 @@ read_population_year <- function(file, sheet, year) {
 
 
 
-# Einlesen beider Jahre und Kombinieren
+# 1) Einlesen beider Jahre und Kombinieren
 pop2010_long <- read_population_year(file, sheet_2010, 2010)
 pop2022_long <- read_population_year(file, sheet_2022, 2022)
 
@@ -64,6 +64,7 @@ head(pop2022_long)
 
 pop_all <- bind_rows(pop2010_long, pop2022_long)
 
+# 2) Sekundärindex für Kantone und Bezirke erzeugen
 # Kantons- und Bezirkszuweisung für jede Gemeinde
 pop_all <- pop_all %>%
   mutate(region_trim = str_trim(region))
@@ -102,9 +103,7 @@ pop_all <- pop_all %>%
 # Fallback: Wenn bezirk NA, setze bezirk = kanton (z.B. wenn keine Bezirke vorhanden)
 pop_all <- pop_all %>% mutate(bezirk = if_else(is.na(bezirk), kanton, bezirk))
 
-# Nun haben wir für jede Zeile: gebiet (roh), gebiet_trim, kanton, bezirk, alter_num, einwohner, jahr
-
-# ---- Altersgruppen definieren (nach Aufgabenstellung) ----
+# 3) Altersgruppen definieren
 # Gefordert waren:
 # - Kinder (bis 12 Jahre)   : <= 12
 # - Minderjährige (unter 18): < 18
@@ -153,7 +152,7 @@ wide_groups <- age_groups %>%
   pivot_wider(names_from = gruppe_disj, values_from = einwohner_gruppe, values_fill = 0) %>%
   left_join(minderjaehrige_sum, by = c("year","kanton","bezirk","gemeinde"))
 
-# 5) Statistische Kennwerte für die drei Altersgruppen über alle Datensätze 2010 & 2022
+# 4) Statistische Kennwerte für die drei Altersgruppen über alle Datensätze 2010 & 2022
 
 stat_groups <- wide_groups %>%
   select(year, kanton, bezirk, gemeinde, Kinder_0_12, Erwachsene_18_64, Erwachsene_65_plus) %>%
@@ -173,7 +172,7 @@ stat_groups <- wide_groups %>%
 # Speichere Ergebnis als CSV
 write_csv(stat_groups, "statistische_kennwerte_altersgruppen_2010_2022.csv")
 
-# 6) Unterschied des Durchschnittsalters dieser Gruppen in den beiden Referenzjahren für alle Bezirke im Kanton Zürich ----
+# 5) Unterschied des Durchschnittsalters dieser Gruppen in den beiden Referenzjahren für alle Bezirke im Kanton Zürich ----
 
 # Bezirke und Kantone definieren
 pop_all <- pop_all %>%
@@ -293,7 +292,7 @@ head(bezirk_age_means)
 # Speichere als CSV
 write_csv(bezirk_age_wide, "differenz_durchschnittsalter_bezirke_zuerich_2022_minus_2010.csv")
 
-# 7) Boxplot: Verteilungen des Durchschnittsalters der Minderjährigen in den Gemeinden der 11 Bezirke des Kanton Zürichs ohne die Stadt Zürich in beiden Jahren ----
+# 6) Boxplot: Verteilungen des Durchschnittsalters der Minderjährigen in den Gemeinden der 11 Bezirke des Kanton Zürichs ohne die Stadt Zürich in beiden Jahren ----
 # Wir berechnen pro Gemeinde das Durchschnittsalter der Minderjährigen (alter < 18), dann filtern die Bezirke (11 Bezirke ohne 'Stadt Zürich') und plotten Boxplots je Jahr.
 
 # Durchschnittsalter Minderjährige pro Gemeinde und Jahr (kanton Zürich)
