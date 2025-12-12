@@ -1,4 +1,4 @@
-# Benötigte Pakete
+# library-Sammlung
 install.packages("janitor")
 library(tidyverse)
 library(readxl)
@@ -7,12 +7,12 @@ library(dplyr)
 library(stringr)
 library(ggplot2)
 
-# ---- Benutzeranpassung: Dateipfade und sheetnamen ----
+# Dateipfade und sheetnamen
 file <- "su-d-01.02.03.06.xlsx"
 sheet_2010 <- "2022"
 sheet_2022 <- "2010"
 
-# ---- Hilfsdaten: Liste deutscher Kantonsnamen (für Erkennung) ----
+# Liste deutscher Kantonsnamen
 kantone_de <- c("Zürich","Bern","Luzern","Uri","Schwyz","Obwalden","Nidwalden",
                 "Glarus","Zug","Fribourg","Solothurn","Basel-Stadt","Basel-Landschaft",
                 "Schaffhausen","Appenzell Ausserrhoden","Appenzell Innerrhoden",
@@ -20,7 +20,7 @@ kantone_de <- c("Zürich","Bern","Luzern","Uri","Schwyz","Obwalden","Nidwalden",
                 "Valais","Neuchâtel","Genève","Jura")
 # Some names might use different spellings (e.g., "Wallis" instead of "Valais") - adapt if needed.
 
-# ---- Funktion zum Einlesen + Umwandeln eines Jahresfiles ----
+# Funktion zum Einlesen + Umwandeln eines Jahresfiles
 read_population_year <- function(file, sheet, year) {
   raw <- read_excel(file, sheet = sheet)
   
@@ -55,7 +55,7 @@ read_population_year <- function(file, sheet, year) {
 
 
 
-# ---- Einlesen beider Jahre und Kombinieren ----
+# Einlesen beider Jahre und Kombinieren
 pop2010_long <- read_population_year(file, sheet_2010, 2010)
 pop2022_long <- read_population_year(file, sheet_2022, 2022)
 
@@ -64,13 +64,11 @@ head(pop2022_long)
 
 pop_all <- bind_rows(pop2010_long, pop2022_long)
 
-# ---- Jetzt: Kantons- und Bezirkszuweisung für jede Gemeinde ----
-# Idee: wir identifizieren Zeilen, die ganz sicher Kantone sind (nach kantone_de), füllen diese nach unten.
-# Für Bezirke verwenden wir die leading_spaces- bzw. level_guess Heuristik:
+# Kantons- und Bezirkszuweisung für jede Gemeinde
 pop_all <- pop_all %>%
   mutate(region_trim = str_trim(region))
 
-# mark canton rows explicitly where name matches canton list
+# Kantonszeilen explizit markieren deren Name mit der Kantonsliste übereinstimmt
 pop_all <- pop_all %>%
   mutate(kanton_row = if_else(region_trim %in% kantone_de, region_trim, NA_character_))
 
@@ -112,10 +110,6 @@ pop_all <- pop_all %>% mutate(bezirk = if_else(is.na(bezirk), kanton, bezirk))
 # - Minderjährige (unter 18): < 18
 # - Erwachsene < 65         : 18-64 (oder >=18 & <65)
 # - Erwachsene >= 65        : >= 65
-#
-# Hinweis: Gruppen überlappen (Kinder ⊂ Minderjährige). Später verlangt Aufgabe 5 "drei Altersgruppen" -> ich nehme an,
-# es sind die drei disjunkten Gruppen: Kinder (0-12), Erwachsene 18-64, Senioren 65+. "Minderjährige" wird zusätzlich ausgewiesen.
-# Ich berechne sowohl die disjunkten Summen als auch die Minderjährigen als eigene (überlappende) Kategorie.
 
 pop_all <- pop_all %>%
   mutate(
@@ -129,10 +123,8 @@ pop_all <- pop_all %>%
   )
 
 
-# ---- Aggregation: Einwohner pro Gemeinde x Jahr x Altersgruppe (sowohl disjunkte Gruppen als auch Minderjährige) ----
-# Wir wollen pro Gemeindename (letztlich die tatsächliche Gemeindezeile) die Summen bilden.
-# Erkennen einer Gemeindezeile: level_guess == "gemeinde" oder fallback: gebiet ist nicht kanton und nicht bezirk
-# Für Robustheit: wir aggregieren nach kombinierter (kanton, bezirk, gebiet_trim) — das gibt Gemeinde-Ebene.
+# Aggregation: Einwohner pro Gemeinde x Jahr x Altersgruppe (sowohl disjunkte Gruppen als auch Minderjährige)
+# Wir wollen pro Gemeindename die Summen bilden.
 
 age_groups <- pop_all %>%
   group_by(year, kanton, bezirk, gemeinde = region_trim, age) %>%
@@ -161,9 +153,8 @@ wide_groups <- age_groups %>%
   pivot_wider(names_from = gruppe_disj, values_from = einwohner_gruppe, values_fill = 0) %>%
   left_join(minderjaehrige_sum, by = c("year","kanton","bezirk","gemeinde"))
 
-# ---- 5) Statistische Kennwerte für die drei Altersgruppen über alle Datensätze 2010 & 2022 ----
-# Hier nehme ich (wie oben erklärt) die drei disjunkten Gruppen:
-# Kinder_0_12, Erwachsene_18_64, Erwachsene_65_plus
+# 5) Statistische Kennwerte für die drei Altersgruppen über alle Datensätze 2010 & 2022
+
 stat_groups <- wide_groups %>%
   select(year, kanton, bezirk, gemeinde, Kinder_0_12, Erwachsene_18_64, Erwachsene_65_plus) %>%
   pivot_longer(cols = c(Kinder_0_12, Erwachsene_18_64, Erwachsene_65_plus),
@@ -182,14 +173,7 @@ stat_groups <- wide_groups %>%
 # Speichere Ergebnis als CSV
 write_csv(stat_groups, "statistische_kennwerte_altersgruppen_2010_2022.csv")
 
-# ---- 6) Unterschied des Durchschnittsalters dieser Gruppen in den beiden Referenzjahren für alle Bezirke im Kanton Zürich ----
-# Wir müssen "Durchschnittsalter dieser Gruppen" definieren: ich interpretiere das als 
-# "für jede Gruppe (z.B. Kinder_0_12) berechne das durchschnittliche Alter innerhalb der Gruppe in einem Bezirk" 
-# (also gewichteter Mittelwert der Altersjahre, gewichtet mit Einwohnerzahl).
-#
-# Vorgehen:
-# - Für jede Bezirk x Jahr x Altersgruppe: compute weighted mean age = sum(age * persons_in_age)/sum(persons_in_age)
-# - Dann Unterschied 2022 - 2010
+# 6) Unterschied des Durchschnittsalters dieser Gruppen in den beiden Referenzjahren für alle Bezirke im Kanton Zürich ----
 
 # Bezirke und Kantone definieren
 pop_all <- pop_all %>%
@@ -215,7 +199,7 @@ pop_all <- pop_all %>%
   fill(bezirk, .direction = "down")
 
 
-# Erst: berechne Einwohner pro Alter (alter_num) aggregiert auf Bezirk-Ebene (kanton == "Zürich")
+# Erst: berechne Einwohner pro Alter (age) aggregiert auf Bezirk-Ebene (kanton == "Zürich")
 zuerich_age_dist <- pop_all %>%
   filter(kanton == "Zürich") %>%
   group_by(year, kanton, bezirk, age) %>%
@@ -250,7 +234,7 @@ pop_clean <- pop_all %>%
       TRUE ~ "Sonst"
     ),
     
-    # Text bereinigen (Prefix entfernen)
+    # Prefix entfernen
     region_clean = region_trim %>%
       str_remove("^\\- ") %>%
       str_remove("^>> ") %>%
@@ -265,7 +249,7 @@ pop_clean <- pop_all %>%
     gemeinde = if_else(level == "Gemeinde", region_clean, NA_character_)
   ) %>%
   
-  # Werte nach unten „durchreichen“
+  # Werte nach unten durchreichen
   fill(kanton, .direction = "down") %>%
   fill(bezirk, .direction = "down") %>%
   fill(gemeinde, .direction = "down") %>%
@@ -309,11 +293,10 @@ head(bezirk_age_means)
 # Speichere als CSV
 write_csv(bezirk_age_wide, "differenz_durchschnittsalter_bezirke_zuerich_2022_minus_2010.csv")
 
-# ---- 7) Boxplot: Verteilungen des Durchschnittsalters der Minderjährigen in den Gemeinden der 11 Bezirke des Kanton Zürichs ohne die Stadt Zürich in beiden Jahren ----
+# 7) Boxplot: Verteilungen des Durchschnittsalters der Minderjährigen in den Gemeinden der 11 Bezirke des Kanton Zürichs ohne die Stadt Zürich in beiden Jahren ----
 # Wir berechnen pro Gemeinde das Durchschnittsalter der Minderjährigen (alter < 18), dann filtern die Bezirke (11 Bezirke ohne 'Stadt Zürich') und plotten Boxplots je Jahr.
-# Falls der Bezirk der Stadt Zürich "Zürich" oder "Stadt Zürich" heißt, filtern wir ihn weg.
 
-# Zuerst: Durchschnittsalter Minderjährige pro Gemeinde und Jahr (kanton Zürich)
+# Durchschnittsalter Minderjährige pro Gemeinde und Jahr (kanton Zürich)
 minder_mean_gemeinde <- pop_all %>%
   filter(kanton == "Zürich", age < 18) %>%
   group_by(year, bezirk, gemeinde = region_trim, age) %>%
@@ -330,17 +313,6 @@ exclude_names <- c("Stadt Zürich", "Zürich", "Zuerich")
 minder_mean_gemeinde_plot <- minder_mean_gemeinde %>%
   filter(!bezirk %in% exclude_names)
 
-# Plot
-# p <- ggplot(minder_mean_gemeinde_plot, aes(x = factor(year()), y = mean_age_minder)) +
-#   geom_boxplot() +
-#   facet_wrap(~ bezirk, scales = "free_y") +
-#   labs(
-#     title = "Verteilung des Durchschnittsalters der Minderjährigen (Gemeinden) in den Bezirken des Kantons Zürich",
-#     subtitle = "Ohne die Stadt Zürich — Vergleich 2010 vs 2022",
-#     x = "Jahr",
-#     y = "Durchschnittsalter Minderjährige (Jahre)"
-#   ) +
-#   theme_minimal()
 # Filter Zürich ohne Stadt Zürich
 zuerich_bezirke <- pop_all %>%
   filter(kanton == "Zürich" & bezirk != "Zürich")  # Stadt Zürich ausschließen
